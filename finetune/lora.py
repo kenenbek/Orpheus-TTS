@@ -28,7 +28,7 @@ lora_alpha = 64
 lora_dropout = 0.0
 
 tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = AutoModelForCausalLM.from_pretrained(model_name, attn_implementation="flash_attention_2")
+model = AutoModelForCausalLM.from_pretrained(model_name, attn_implementation="sdpa")
 
 lora_config = LoraConfig(
     r=lora_rank,
@@ -43,7 +43,10 @@ lora_config = LoraConfig(
 
 model = get_peft_model(model, lora_config)
 
-ds = load_dataset(dsn, split="train") 
+ds = load_dataset(dsn, split="train")
+ds = ds.shuffle(seed=42)            # shuffle once
+ds = ds.select(range(500))      # take first 500 samples after shuffle
+
 
 wandb.init(project=project_name, name = run_name)
 
