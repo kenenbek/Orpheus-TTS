@@ -53,7 +53,6 @@ quant_config = BitsAndBytesConfig(
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
     quantization_config=quant_config,
-    attn_implementation="sdpa",
 )
 model.gradient_checkpointing_enable()
 model.config.use_cache = False
@@ -81,6 +80,9 @@ model = get_peft_model(model, lora_cfg)
 
 ds = load_dataset(dsn, split="train")
 ds = ds.shuffle(seed=42)
+ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
+ds = ds.sort("_len", reverse=True)
+
 #ds = ds.select(range(6))
 
 
