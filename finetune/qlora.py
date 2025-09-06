@@ -79,7 +79,7 @@ lora_cfg = LoraConfig(
 model = get_peft_model(model, lora_cfg)
 
 ds = load_dataset(dsn, split="train")
-ds = ds.shuffle(seed=42)
+#ds = ds.shuffle(seed=42)
 ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
 ds = ds.sort("_len", reverse=True)
 
@@ -90,7 +90,7 @@ args = TrainingArguments(
     output_dir=f"./{base_repo_id}",
     num_train_epochs=epochs,
     per_device_train_batch_size=batch_size,
-    gradient_accumulation_steps=16,
+    gradient_accumulation_steps=1,
     learning_rate=learning_rate,
     logging_steps=50,
     save_steps=save_steps,
@@ -102,7 +102,13 @@ args = TrainingArguments(
     save_total_limit=5
 )
 
-trainer = Trainer(
+from torch.utils.data import SequentialSampler
+
+class NoShuffleTrainer(Trainer):
+    def get_train_sampler(self):
+        return SequentialSampler(self.train_dataset)
+
+trainer = NoShuffleTrainer(
     model=model,
     args=args,
     train_dataset=ds,
