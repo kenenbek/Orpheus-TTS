@@ -79,11 +79,9 @@ lora_cfg = LoraConfig(
 model = get_peft_model(model, lora_cfg)
 
 ds = load_dataset(dsn, split="train")
-ds = ds.shuffle(seed=42)
-
-# ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
-# ds = ds.sort("_len", reverse=True)
-# ds = ds.select(range(6))
+# Add per-example length and a stable index, then sort by length descending
+ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
+ds = ds.sort("_len", reverse=True)
 
 
 args = TrainingArguments(
@@ -98,15 +96,46 @@ args = TrainingArguments(
     report_to=["wandb"],
     optim="paged_adamw_8bit",
     gradient_checkpointing=True,
-
+    dataloader_num_workers=0,
     save_total_limit=5
 )
 
-from torch.utils.data import SequentialSampler
+from torch.utils.data import SequentialSampler, DataLoader
 
 class NoShuffleTrainer(Trainer):
+
     def get_train_sampler(self):
         return SequentialSampler(self.train_dataset)
+
+    def get_train_dataloader(self) -> DataLoader:
+        """
+        Returns the training DataLoader with shuffling disabled.
+        """
+        if self.train_dataset is None:
+            raise ValueError("Trainer: training requires a train_dataset.")
+
+        # Use the overridden sampler to preserve sorted order
+        train_sampler = self.get_train_sampler()
+
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.args.train_batch_size,
+            sampler=train_sampler,
+            collate_fn=self.data_collator,
+        )
+
+    # def train(self, resume_from_checkpoint=None, **kwargs):
+    #     # Iterate a few batches, print tensor shapes and indices, and exit without training
+    #     dataloader = self.get_train_dataloader()
+    #     max_batches = 5
+    #     for step, inputs in enumerate(dataloader):
+    #         x = inputs['input_ids']
+    #
+    #         print(f"[NoShuffleTrainer] Batch shapes: {x.shape}", flush=True)
+    #         if step + 1 >= max_batches:
+    #             break
+    #     print("[NoShuffleTrainer] Shape/order check complete. No training performed.", flush=True)
+    #     return None
 
 trainer = NoShuffleTrainer(
     model=model,
