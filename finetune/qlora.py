@@ -82,7 +82,8 @@ ds = load_dataset(dsn, split="train")
 # Add per-example length and a stable index, then sort by length descending
 ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
 ds = ds.sort("_len", reverse=True)
-
+N_skip = 1
+ds = ds.select(range(N_skip, ds.num_rows))
 
 args = TrainingArguments(
     output_dir=f"./{base_repo_id}",
@@ -123,19 +124,6 @@ class NoShuffleTrainer(Trainer):
             sampler=train_sampler,
             collate_fn=self.data_collator,
         )
-
-    # def train(self, resume_from_checkpoint=None, **kwargs):
-    #     # Iterate a few batches, print tensor shapes and indices, and exit without training
-    #     dataloader = self.get_train_dataloader()
-    #     max_batches = 5
-    #     for step, inputs in enumerate(dataloader):
-    #         x = inputs['input_ids']
-    #
-    #         print(f"[NoShuffleTrainer] Batch shapes: {x.shape}", flush=True)
-    #         if step + 1 >= max_batches:
-    #             break
-    #     print("[NoShuffleTrainer] Shape/order check complete. No training performed.", flush=True)
-    #     return None
 
 trainer = NoShuffleTrainer(
     model=model,
