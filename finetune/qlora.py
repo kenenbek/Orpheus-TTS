@@ -82,7 +82,7 @@ ds = load_dataset(dsn, split="train")
 # Add per-example length and a stable index, then sort by length descending
 ds = ds.map(lambda ex: {"_len": len(ex["input_ids"])})
 ds = ds.sort("_len", reverse=True)
-N_skip = 1
+N_skip = 2
 ds = ds.select(range(N_skip, ds.num_rows))
 
 args = TrainingArguments(

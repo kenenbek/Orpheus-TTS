@@ -1,14 +1,14 @@
 # CHANGE THIS TO YOUR OWN DATASET
-TTS_dataset: "MbankAI/Aiganysh-neutral"
+TTS_dataset: "MbankAI/Timur-neutral"
 
 model_name: "canopylabs/orpheus-3b-0.1-ft"
 
 # Training Args
 epochs: 200
-batch_size: 4
+batch_size: 2
 number_processes: 1
 pad_token: 128263
-save_steps: 100
+save_steps: 50
 learning_rate: 5.0e-5
 
 # Naming and paths
