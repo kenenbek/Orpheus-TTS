@@ -1,5 +1,5 @@
 # CHANGE THIS TO YOUR OWN DATASET
-TTS_dataset: "MbankAI/Timur-neutral"
+TTS_datasets: ["MbankAI/Aiganysh-neutral", "MbankAI/Aiganysh-strict", "MbankAI/Timur-neutral", "MbankAI/Timur-strict"]
 
 model_name: "canopylabs/orpheus-3b-0.1-ft"
 
@@ -10,8 +10,13 @@ number_processes: 1
 pad_token: 128263
 save_steps: 50
 learning_rate: 5.0e-5
+gradient_accumulation_steps: 16
+logging_steps: 50
+save_total_limit: 5
 
 # Naming and paths
-save_folder: "ft-checkpoints"
+save_folder: "two-speaker-checkpoints"
 project_name: "tuning-orpheus"
 run_name: "5e5-0"
+
+lora_checkpoint: "ft-checkpoints/checkpoint-2000"
