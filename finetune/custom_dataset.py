@@ -113,7 +113,7 @@ def parse_file_and_create_text_audio_pairs(MANIFEST: str = None, MAX_AUDIO_FILES
             raise ValueError()
 
         audio_text_pairs.append(AudioTextPair(audio_path=local_path,
-                                              text=transcription,             # text="<" + tone + ">" + " " + transcription,
+                                              text="<" + tone + ">" + " " + transcription,
                                               speaker_id=speaker_id))
 
         if 0 < MAX_AUDIO_FILES <= len(audio_text_pairs):
