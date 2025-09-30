@@ -112,14 +112,8 @@ def remove_duplicate_frames(example):
 
 
 def create_input_ids(tokenizer, example):
-    tok_info = '''*** HERE you can modify the text prompt
-    i.e. if you wanted a multispeaker model like canopylabs/orpheus-3b-0.1-ft, you can pass:
-    f"{example["source"]}:  {example["text"]}", as is passed.
-    '''
-    print(tok_info)
-
     speaker, tone, text  = example["speaker"], example["tone"], example["text"]
-    prompt = f"{speaker}:  <{tone}> {text}"
+    prompt = f"{speaker}: <{tone}> {text}"
 
     print("\n\n")
     print("Current prompt being used:")
@@ -167,6 +161,6 @@ if __name__ == '__main__':
     columns_to_remove = [col for col in ds.column_names if col not in columns_to_keep]
     ds = ds.remove_columns(columns_to_remove)
 
-    #ds.push_to_hub(HG_PUSH_NAME)
+    ds.push_to_hub(HG_PUSH_NAME)
 
 
