@@ -159,7 +159,7 @@ if __name__ == '__main__':
     ds = Dataset.from_pandas(meta_df, preserve_index=False)
     ds = ds.cast_column("audio", Audio(sampling_rate=24000))
 
-    print(ds[0]["audio"])
+    print(ds[0]["audio"]["array"].shape)
     sys.exit(9876)
 
     model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to("cuda")
