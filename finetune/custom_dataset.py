@@ -131,8 +131,8 @@ class DataCollatorForOrpheus:
     def __call__(self, features):
         # Ensure lists
         input_ids = [f["input_ids"] for f in features]
-        labels = [f.get("labels", f["input_ids"]) for f in features]
-        attn = [f.get("attention_mask") for f in features]
+        labels = [f["labels"] for f in features]
+        attn = [f["attention_mask"] for f in features]
 
         lengths = [len(x) for x in input_ids]
         max_len = max(lengths)
