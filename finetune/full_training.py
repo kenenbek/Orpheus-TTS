@@ -6,6 +6,8 @@ from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import wandb
 
+from custom_dataset import DataCollatorForOrpheus
+
 # Setup logging
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +32,7 @@ GRADIENT_ACCUMULATION_STEPS = config["GRADIENT_ACCUMULATION_STEPS"]
 GRADIENT_CHECKPOINTING = config["GRADIENT_CHECKPOINTING"]
 LEARNING_RATE = float(config["LEARNING_RATE"])
 SEED = config["SEED"]
+PAD_TOKEN = config["PAD_TOKEN"]
 
 LORA_RANK = config["LORA_RANK"]
 LORA_ALPHA = config["LORA_ALPHA"]
@@ -40,6 +43,9 @@ LORA_DROPOUT = config["LORA_DROPOUT"]
 
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME,
                                             attn_implementation="sdpa")
+
+if getattr(model.config, "pad_token_id", None) is None:
+    model.config.pad_token_id = PAD_TOKEN
 
 lora_config = LoraConfig(
     r=LORA_RANK,
@@ -54,6 +60,7 @@ lora_config = LoraConfig(
 
 model = get_peft_model(model, lora_config)
 ds = load_dataset(DATASET, split="train")
+data_collator = DataCollatorForOrpheus(pad_token_id=PAD_TOKEN)
 
 wandb.init(project="OrpheusTTS")
 
@@ -73,6 +80,7 @@ trainer = Trainer(
     model=model,
     args=training_args,
     train_dataset=ds,
+    data_collator=data_collator,
 )
 
 trainer.train()
