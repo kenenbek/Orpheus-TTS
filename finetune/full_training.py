@@ -53,7 +53,7 @@ lora_config = LoraConfig(
 )
 
 model = get_peft_model(model, lora_config)
-ds = load_dataset(DATASET)
+ds = load_dataset(DATASET, split="train")
 
 wandb.init(project="OrpheusTTS")
 
