@@ -1,10 +1,11 @@
 import os
 import logging
 import yaml
-from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, AutoProcessor
+from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, BitsAndBytesConfig
 from peft import LoraConfig, get_peft_model
 from datasets import load_dataset
 import wandb
+import torch
 
 from custom_dataset import DataCollatorForOrpheus
 
@@ -41,8 +42,15 @@ LORA_DROPOUT = config["LORA_DROPOUT"]
 # CUDA_VISIBLE_DEVICES=3 python full_training.py
 
 
+quant_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16,
+)
+
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME,
-                                            attn_implementation="sdpa")
+                                            quantization_config=quant_config)
 
 if getattr(model.config, "pad_token_id", None) is None:
     model.config.pad_token_id = PAD_TOKEN
@@ -74,6 +82,7 @@ training_args = TrainingArguments(
     save_steps=SAVE_STEPS,
     remove_unused_columns=True,
     learning_rate=LEARNING_RATE,
+    bf16=torch.cuda.is_available(),
 )
 
 trainer = Trainer(
