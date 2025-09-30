@@ -160,6 +160,7 @@ if __name__ == '__main__':
     ds = ds.cast_column("audio", Audio(sampling_rate=24000))
 
     print(ds[0]["audio"]["array"].shape)
+    print(ds[0]["audio"]["sampling_rate"].shape)
     print(ds[0]["audio"].keys())
     sys.exit(9876)
 
