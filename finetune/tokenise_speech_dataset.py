@@ -13,7 +13,6 @@ import sys
 import pandas as pd
 import torch
 from snac import SNAC
-import torchaudio.transforms as T
 from transformers import AutoTokenizer
 from datasets import Dataset, Audio
 
@@ -28,10 +27,10 @@ logger = logging.getLogger(__name__)
 
 
 MANIFEST = "DUMMY1/filtered_manifest.txt"
-MAX_AUDIO_FILES = 0
 HG_PUSH_NAME = "MbankAI/Orpheus-tokenised-dataset"
-SAMPLE_RATE = 22050
 tokenizer_name = "canopylabs/orpheus-3b-0.1-pretrained"
+MAX_AUDIO_FILES = 0
+SAMPLE_RATE = 22050
 
 tokeniser_length = 128256
 start_of_text = 128000
@@ -68,7 +67,6 @@ def tokenise_audio(waveform):
     all_codes.append(codes[1][0][(2*i)+1].item()+128266+(4*4096))
     all_codes.append(codes[2][0][(4*i)+2].item()+128266+(5*4096))
     all_codes.append(codes[2][0][(4*i)+3].item()+128266+(6*4096))
-
 
   return all_codes
 
