@@ -8,6 +8,7 @@ Original file is located at
 """
 
 import logging
+import sys
 
 import pandas as pd
 import torch
@@ -157,6 +158,9 @@ if __name__ == '__main__':
     meta_df["audio"] = meta_df["path"].astype(str)
     ds = Dataset.from_pandas(meta_df, preserve_index=False)
     ds = ds.cast_column("audio", Audio(sampling_rate=24000))
+
+    print(ds[0]["audio"])
+    sys.exit(9876)
 
     model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to("cuda")
 
