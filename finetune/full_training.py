@@ -52,6 +52,9 @@ quant_config = BitsAndBytesConfig(
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME,
                                             quantization_config=quant_config)
 
+model.gradient_checkpointing_enable()
+model.config.use_cache = False
+
 if getattr(model.config, "pad_token_id", None) is None:
     model.config.pad_token_id = PAD_TOKEN
 
