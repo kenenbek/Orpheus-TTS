@@ -153,11 +153,6 @@ if __name__ == '__main__':
     ds = Dataset.from_pandas(meta_df, preserve_index=False)
     ds = ds.cast_column("audio", Audio(sampling_rate=SAMPLE_RATE))
 
-    print(ds[0]["audio"]["array"].shape)
-    print(ds[0]["audio"]["sampling_rate"])
-    print(ds[0]["audio"].keys())
-    sys.exit(9876)
-
     model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to("cuda")
 
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
