@@ -7,33 +7,52 @@ Original file is located at
     https://colab.research.google.com/drive/1wg_CPCA-MzsWtsujwy-1Ovhv-tn8Q1nD
 """
 
+import logging
+
+import pandas as pd
 import torch
 from snac import SNAC
-from datasets import load_dataset
-from huggingface_hub import snapshot_download
-from datasets import load_dataset
-
-dsn = my_original_dataset_name
-
-snapshot_download(
-    repo_id=dsn,
-    repo_type="dataset",
-    revision="main",
-    max_workers=64,
-)
-
-
-ds = load_dataset(dsn, split="train")
-ds_sample_rate = ds[0]["audio"]["sampling_rate"]
-
-model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-model = model.to("cuda")
-
 import torchaudio.transforms as T
+from transformers import AutoTokenizer
+from datasets import Dataset, Audio
+
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(), logging.FileHandler("finetune.log")]
+)
+logger = logging.getLogger(__name__)
+
+
+MANIFEST = "DUMMY1/filtered_manifest.txt"
+MAX_AUDIO_FILES = 0
+HG_PUSH_NAME = "MbankAI/Orpheus-tokenised-dataset"
+ORIGINAL_SAMPLE_RATE = 44100
+tokenizer_name = "canopylabs/orpheus-3b-0.1-pretrained"
+
+tokeniser_length = 128256
+start_of_text = 128000
+end_of_text = 128009
+
+start_of_speech = tokeniser_length + 1
+end_of_speech = tokeniser_length + 2
+
+start_of_human = tokeniser_length + 3
+end_of_human = tokeniser_length + 4
+
+start_of_ai = tokeniser_length + 5
+end_of_ai =  tokeniser_length + 6
+pad_token = tokeniser_length + 7
+
+audio_tokens_start = tokeniser_length + 10
+
+
 def tokenise_audio(waveform):
   waveform = torch.from_numpy(waveform).unsqueeze(0)
   waveform = waveform.to(dtype=torch.float32)
-  resample_transform = T.Resample(orig_freq=ds_sample_rate, new_freq=24000)
+  resample_transform = T.Resample(orig_freq=ORIGINAL_SAMPLE_RATE, new_freq=24000)
   waveform = resample_transform(waveform)
 
   waveform = waveform.unsqueeze(0).to("cuda")
@@ -55,7 +74,6 @@ def tokenise_audio(waveform):
 
   return all_codes
 
-import random
 def add_codes(example):
     # Always initialize codes_list to None
     codes_list = None
@@ -72,35 +90,6 @@ def add_codes(example):
     example["codes_list"] = codes_list
 
     return example
-
-ds = ds.map(add_codes, remove_columns=["audio"])
-
-#@title Load Tokenizer
-tokeniser_length = 128256
-start_of_text = 128000
-end_of_text = 128009
-
-start_of_speech = tokeniser_length + 1
-end_of_speech = tokeniser_length + 2
-
-start_of_human = tokeniser_length + 3
-end_of_human = tokeniser_length + 4
-
-start_of_ai = tokeniser_length + 5
-end_of_ai =  tokeniser_length + 6
-pad_token = tokeniser_length + 7
-
-audio_tokens_start = tokeniser_length + 10
-
-tokenizer_name = "canopylabs/orpheus-3b-0.1-pretrained"
-
-from transformers import AutoTokenizer
-import os
-tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
-num_proc = os.cpu_count() - 2
-
-ds = ds.filter(lambda x: x["codes_list"] is not None)
-ds = ds.filter(lambda x: len(x["codes_list"]) > 0)
 
 #@title Create Input Ids
 def remove_duplicate_frames(example):
@@ -125,16 +114,23 @@ def remove_duplicate_frames(example):
 
     return example
 
-ds = ds.map(remove_duplicate_frames, num_proc=num_proc)
 
-tok_info = '''*** HERE you can modify the text prompt
-i.e. if you wanted a multispeaker model like canopylabs/orpheus-3b-0.1-ft, you can pass:
-f"{example["source"]}:  {example["text"]}", as is passed.
-'''
-print(tok_info)
+def create_input_ids(tokenizer, example):
+    tok_info = '''*** HERE you can modify the text prompt
+    i.e. if you wanted a multispeaker model like canopylabs/orpheus-3b-0.1-ft, you can pass:
+    f"{example["source"]}:  {example["text"]}", as is passed.
+    '''
+    print(tok_info)
 
-def create_input_ids(example):
-    text_ids = tokenizer.encode(example["text"],  add_special_tokens=True)
+    speaker, tone, text  = example["speaker"], example["tone"], example["text"]
+    prompt = f"{speaker}:  <{tone}> {text}"
+
+    print("\n\n")
+    print("Current prompt being used:")
+    print(prompt)
+    print("\n")
+
+    text_ids = tokenizer.encode(prompt,  add_special_tokens=True)
     text_ids.append(end_of_text)
     example["text_tokens"] = text_ids
     input_ids = (
@@ -153,12 +149,28 @@ def create_input_ids(example):
 
     return example
 
-ds = ds.map(create_input_ids, num_proc=num_proc, remove_columns=["text", "codes_list"])
 
-#@title Remove unnecessary columns
-columns_to_keep = ["input_ids", "labels", "attention_mask"]
-columns_to_remove = [col for col in ds.column_names if col not in columns_to_keep]
+if __name__ == '__main__':
+    meta_df = pd.read_csv(MANIFEST, sep="|", header=None,
+                          names=["path", "speaker", "tone", "unused", "text"])
+    meta_df["audio"] = meta_df["path"].astype(str)
+    ds = Dataset.from_pandas(meta_df, preserve_index=False)
+    ds = ds.cast_column("audio", Audio(sampling_rate=24000))
 
-ds = ds.remove_columns(columns_to_remove)
+    model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to("cuda")
 
-ds.push_to_hub(name_to_push_dataset_to)
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+
+    ds = ds.map(add_codes, remove_columns=["audio"])
+    ds = ds.filter(lambda x: x["codes_list"] is not None)
+    ds = ds.filter(lambda x: len(x["codes_list"]) > 0)
+    ds = ds.map(remove_duplicate_frames, num_proc=1)
+    ds = ds.map(lambda x: create_input_ids(tokenizer, x), num_proc=1, remove_columns=["text", "codes_list"])
+
+    columns_to_keep = ["input_ids", "labels", "attention_mask"]
+    columns_to_remove = [col for col in ds.column_names if col not in columns_to_keep]
+    ds = ds.remove_columns(columns_to_remove)
+
+    #ds.push_to_hub(HG_PUSH_NAME)
+
+
