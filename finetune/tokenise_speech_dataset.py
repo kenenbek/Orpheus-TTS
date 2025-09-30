@@ -80,6 +80,7 @@ def add_codes(example):
 
     try:
         answer_audio = example.get("audio")
+        print(answer_audio)
         # If there's a valid audio array, tokenise it
         if answer_audio and "array" in answer_audio:
             audio_array = answer_audio["array"]
