@@ -35,11 +35,11 @@ LORA_RANK = config["LORA_RANK"]
 LORA_ALPHA = config["LORA_ALPHA"]
 LORA_DROPOUT = config["LORA_DROPOUT"]
 
-# CUDA_VISIBLE_DEVICES=3 python finetuning/full_training.py
+# CUDA_VISIBLE_DEVICES=3 python full_training.py
 
 
 model = AutoModelForCausalLM.from_pretrained(MODEL_NAME,
-                                            attn_implementation="flash_attention_2")
+                                            attn_implementation="sdpa")
 
 lora_config = LoraConfig(
     r=LORA_RANK,
