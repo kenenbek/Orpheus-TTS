@@ -7,48 +7,28 @@ Original file is located at
     https://colab.research.google.com/drive/1wg_CPCA-MzsWtsujwy-1Ovhv-tn8Q1nD
 """
 
-# Change these
+import torch
+from snac import SNAC
+from datasets import load_dataset
+from huggingface_hub import snapshot_download
+from datasets import load_dataset
 
-my_original_dataset_name = "canopylabs/zac-sample-dataset"
+dsn = my_original_dataset_name
+
+snapshot_download(
+    repo_id=dsn,
+    repo_type="dataset",
+    revision="main",
+    max_workers=64,
+)
 
 
-## CHANGE TO YOUR NAMESPACE
-name_to_push_dataset_to = "<my-namespace>/zac_sample-dataset-tokenised"
+ds = load_dataset(dsn, split="train")
+ds_sample_rate = ds[0]["audio"]["sampling_rate"]
 
+model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
+model = model.to("cuda")
 
-## CHANGE TO YOUR HUGGINGFACE TOKEN
-!huggingface-cli login --token=<your token>
-
-# Commented out IPython magic to ensure Python compatibility.
-# #@title Installation & Setup
-# %%capture
-# import locale
-# locale.getpreferredencoding = lambda: "UTF-8"
-# !pip install datasets
-# !pip install snac
-# import torch
-# from snac import SNAC
-# from datasets import load_dataset
-# from huggingface_hub import snapshot_download
-# from datasets import load_dataset
-# 
-# dsn = my_original_dataset_name
-# 
-# snapshot_download(
-#     repo_id=dsn,
-#     repo_type="dataset",
-#     revision="main",
-#     max_workers=64,
-# )
-# 
-# 
-# ds = load_dataset(dsn, split="train")
-# ds_sample_rate = ds[0]["audio"]["sampling_rate"]
-# 
-# model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
-# model = model.to("cuda")
-
-#@title Tokenisation Function
 import torchaudio.transforms as T
 def tokenise_audio(waveform):
   waveform = torch.from_numpy(waveform).unsqueeze(0)
@@ -75,7 +55,6 @@ def tokenise_audio(waveform):
 
   return all_codes
 
-#@title Map Tokenize
 import random
 def add_codes(example):
     # Always initialize codes_list to None
