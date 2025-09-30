@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 MANIFEST = "DUMMY1/filtered_manifest.txt"
 MAX_AUDIO_FILES = 0
 HG_PUSH_NAME = "MbankAI/Orpheus-tokenised-dataset"
-ORIGINAL_SAMPLE_RATE = 44100
+SAMPLE_RATE = 22050
 tokenizer_name = "canopylabs/orpheus-3b-0.1-pretrained"
 
 tokeniser_length = 128256
@@ -53,9 +53,6 @@ audio_tokens_start = tokeniser_length + 10
 def tokenise_audio(waveform):
   waveform = torch.from_numpy(waveform).unsqueeze(0)
   waveform = waveform.to(dtype=torch.float32)
-  resample_transform = T.Resample(orig_freq=ORIGINAL_SAMPLE_RATE, new_freq=24000)
-  waveform = resample_transform(waveform)
-
   waveform = waveform.unsqueeze(0).to("cuda")
 
   #generate the codes from snac
@@ -81,11 +78,8 @@ def add_codes(example):
 
     try:
         answer_audio = example.get("audio")
-        print(answer_audio)
-        # If there's a valid audio array, tokenise it
-        if answer_audio and "array" in answer_audio:
-            audio_array = answer_audio["array"]
-            codes_list = tokenise_audio(audio_array)
+        audio_array = answer_audio["array"]
+        codes_list = tokenise_audio(audio_array)
     except Exception as e:
         print(f"Skipping row due to error: {e}")
         # Keep codes_list as None if we fail
@@ -157,7 +151,7 @@ if __name__ == '__main__':
                           names=["path", "speaker", "tone", "unused", "text"])
     meta_df["audio"] = meta_df["path"].astype(str)
     ds = Dataset.from_pandas(meta_df, preserve_index=False)
-    ds = ds.cast_column("audio", Audio(sampling_rate=24000))
+    ds = ds.cast_column("audio", Audio(sampling_rate=SAMPLE_RATE))
 
     print(ds[0]["audio"]["array"].shape)
     print(ds[0]["audio"]["sampling_rate"])
