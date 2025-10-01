@@ -3,29 +3,92 @@
 <head>
   <meta charset="UTF-8">
   <title>Streaming Audio Playback</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 2rem; }
+    label { display: block; margin: 0.5rem 0 0.25rem; }
+    textarea, select, input[type="number"] { width: 100%; max-width: 640px; }
+    .row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
+    .row > * { flex: 1 1 180px; }
+    .status { margin-top: 0.5rem; color: #555; }
+  </style>
 </head>
 <body>
   <h1>Streaming Audio Playback</h1>
   <form id="promptForm">
-    <label for="promptInput">Enter Prompt:</label><br>
-    <textarea id="promptInput" rows="4" cols="50" placeholder="Type your prompt here" required></textarea><br>
-    <button type="submit">Play Audio</button>
-  </form>
-  <audio id="audioPlayer" controls autoplay></audio>
-  <script>
-    const base_url = `https://<enter-hostname-here>`;
+    <label for="promptInput">Enter Prompt:</label>
+    <textarea id="promptInput" rows="4" cols="50" placeholder="Type your prompt here" required></textarea>
 
-    document.getElementById("promptForm").addEventListener("submit", function(event) {
+    <div class="row" style="margin-top: 0.5rem;">
+      <div>
+        <label for="voiceSelect">Voice</label>
+        <select id="voiceSelect">
+          <option value="tara" selected>tara</option>
+          <option value="alex">alex</option>
+          <option value="maya">maya</option>
+        </select>
+      </div>
+      <div>
+        <label for="temperature">Temperature</label>
+        <input id="temperature" type="number" step="0.05" min="0" max="2" value="0.4" />
+      </div>
+      <div>
+        <label for="topP">top_p</label>
+        <input id="topP" type="number" step="0.05" min="0" max="1" value="0.9" />
+      </div>
+      <div>
+        <label for="maxTokens">Max tokens</label>
+        <input id="maxTokens" type="number" min="64" max="8192" value="2000" />
+      </div>
+    </div>
+
+    <button type="submit" style="margin-top: 0.75rem;">Play Audio</button>
+    <div class="status" id="status"></div>
+  </form>
+
+  <audio id="audioPlayer" controls autoplay style="margin-top: 1rem; width: 100%; max-width: 640px;"></audio>
+
+  <script>
+    // Use same-origin by default so you can just open http://HOST:PORT/ and it works.
+    // If your server runs elsewhere, set a full URL here (e.g. "http://localhost:8080").
+    const base_url = '';
+
+    const form = document.getElementById('promptForm');
+    const audioPlayer = document.getElementById('audioPlayer');
+    const statusEl = document.getElementById('status');
+
+    form.addEventListener('submit', function(event) {
       event.preventDefault();
-      const prompt = document.getElementById("promptInput").value;
-      const encodedPrompt = encodeURIComponent(prompt);
-      const audioUrl = `${base_url}/tts?prompt=` + encodedPrompt;
-      
-      // Set the audio element's src to your endpoint to stream and play the audio data
-      const audioPlayer = document.getElementById("audioPlayer");
+      const prompt = document.getElementById('promptInput').value.trim();
+      const voice = document.getElementById('voiceSelect').value;
+      const temperature = parseFloat(document.getElementById('temperature').value || '0.4');
+      const top_p = parseFloat(document.getElementById('topP').value || '0.9');
+      const max_tokens = parseInt(document.getElementById('maxTokens').value || '2000', 10);
+
+      if (!prompt) {
+        statusEl.textContent = 'Please enter a prompt.';
+        return;
+      }
+
+      const params = new URLSearchParams({
+        prompt,
+        voice,
+        temperature: String(temperature),
+        top_p: String(top_p),
+        max_tokens: String(max_tokens),
+      });
+
+      const audioUrl = `${base_url}/tts?${params.toString()}`;
+      statusEl.textContent = 'Requesting audio...';
+
+      // Point the audio element to the streaming endpoint
       audioPlayer.src = audioUrl;
       audioPlayer.load();
-      audioPlayer.play().catch(err => console.error("Playback error:", err));
+      audioPlayer.play().then(() => {
+        statusEl.textContent = 'Playing.';
+      }).catch(err => {
+        console.error('Playback error:', err);
+        statusEl.textContent = 'Autoplay blocked. Click play on the audio control.';
+      });
     });
   </script>
 </body>
