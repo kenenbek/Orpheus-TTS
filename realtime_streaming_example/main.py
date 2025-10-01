@@ -3,7 +3,8 @@ import struct
 from orpheus_tts import OrpheusModel
 
 app = Flask(__name__)
-engine = OrpheusModel(model_name="canopylabs/orpheus-tts-0.1-finetune-prod")
+engine = OrpheusModel(model_name="canopylabs/orpheus-tts-0.1-finetune-prod",
+                      max_model_len=4096)
 
 def create_wav_header(sample_rate=24000, bits_per_sample=16, channels=1):
     byte_rate = sample_rate * channels * bits_per_sample // 8
