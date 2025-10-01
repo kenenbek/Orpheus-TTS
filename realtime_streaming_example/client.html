@@ -10,6 +10,8 @@
     .row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; }
     .row > * { flex: 1 1 180px; }
     .status { margin-top: 0.5rem; color: #555; }
+    .hint { margin-top: 0.5rem; font-size: 0.95rem; color: #444; }
+    .hint code { background: #f6f8fa; padding: 0 4px; border-radius: 3px; }
   </style>
 </head>
 <body>
@@ -17,14 +19,26 @@
   <form id="promptForm">
     <label for="promptInput">Enter Prompt:</label>
     <textarea id="promptInput" rows="4" cols="50" placeholder="Type your prompt here" required></textarea>
+    <div class="hint">
+      Available tags you can include inline in your prompt:
+      <code>&lt;laugh&gt;</code>, <code>&lt;chuckle&gt;</code>, <code>&lt;sigh&gt;</code>,
+      <code>&lt;cough&gt;</code>, <code>&lt;sniffle&gt;</code>, <code>&lt;groan&gt;</code>,
+      <code>&lt;yawn&gt;</code>, <code>&lt;gasp&gt;</code>.
+      Example: <code>Hello there &lt;chuckle&gt; it&#39;s nice to meet you.</code>
+    </div>
 
     <div class="row" style="margin-top: 0.5rem;">
       <div>
         <label for="voiceSelect">Voice</label>
         <select id="voiceSelect">
           <option value="tara" selected>tara</option>
-          <option value="alex">alex</option>
-          <option value="maya">maya</option>
+          <option value="leah">leah</option>
+          <option value="jess">jess</option>
+          <option value="leo">leo</option>
+          <option value="dan">dan</option>
+          <option value="mia">mia</option>
+          <option value="zac">zac</option>
+          <option value="zoe">zoe</option>
         </select>
       </div>
       <div>
