@@ -8,6 +8,7 @@ import wandb
 import torch
 
 from custom_dataset import DataCollatorForOrpheus
+from finetune.qlora import save_total_limit
 
 # Setup logging
 logging.basicConfig(
@@ -86,6 +87,7 @@ training_args = TrainingArguments(
     remove_unused_columns=True,
     learning_rate=LEARNING_RATE,
     bf16=torch.cuda.is_available(),
+    save_total_limit=KEEP_LAST_N_CHECKPOINTS,
 )
 
 trainer = Trainer(
