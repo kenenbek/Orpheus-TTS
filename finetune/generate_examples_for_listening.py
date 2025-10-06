@@ -16,7 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'orpheus_tts_py
 from orpheus_tts import OrpheusModel
 
 # Configuration
-CHECKPOINT_PATH = "./finetuned_model/checkpoint-36000"  # Path to your merged checkpoint from full_training.py
+CHECKPOINT_PATH = "./checkpoint-36000_merged/"  # Path to your merged checkpoint from full_training.py
 # Alternative: Use specific checkpoint like "./finetuned_model/checkpoint-1000"
 OUTPUT_DIR = "./generated_audio_samples"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
