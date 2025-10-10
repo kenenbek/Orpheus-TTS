@@ -159,6 +159,7 @@ def redistribute_codes(code_list):
          torch.tensor(layer_2).unsqueeze(0),
          torch.tensor(layer_3).unsqueeze(0)]
   # After creating codes
+  print(codes)
   total_values = sum(tensor.numel() for tensor in codes)
   count_bigger = sum((tensor > 4096).sum().item() for tensor in codes)
   print(f"Total values: {total_values}")
