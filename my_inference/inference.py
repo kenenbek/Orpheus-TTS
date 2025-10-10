@@ -6,11 +6,7 @@ import torch
 from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, AutoTokenizer
 import numpy as np
 import soundfile as sf
-import IPython.display as ipd
 import librosa
-from ipywebrtc import AudioRecorder, Audio
-from IPython.display import display
-import ipywidgets as widgets
 import os
 
 snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
@@ -50,7 +46,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 # from peft import PeftModel
 #
-# adapter_path = r"D:\Orpheus-TTS-checkpoints\ft-checkpoints\checkpoint-800"
+# adapter_path = r"/data/kenenbek/Orpheus-TTS/finetune100/finetuned_model/checkpoint-5600"
 #
 # model = PeftModel.from_pretrained(model, adapter_path)
 # model = model.merge_and_unload()
