@@ -59,14 +59,14 @@ prompts = [
 "<sigh> Владимир Болотбеков, <cough> сиздин насыя боюнча карыз катталды.",
 "<sniffle> Төлөмдү жүргүзүүгө мүмкүнчүлүк <groan> тапканыңыз үчүн рахмат. Биз сиздин төлөмдү көзөмөлдөйбүз.",
 "<yawn> Төлөмдү кечиктирүү жоопкерчилик жаратат. Ошондуктан төлөмдү дароо жүргүзүп бериңиз, болбосо чалуулар жана эскертүүлөр кайталана берет.",
-" <gasp>Акча маселелериндеги кыйынчылыктар адамга оор абал жаратканын түшүнөбүз."
+"<gasp>Акча маселелериндеги кыйынчылыктар адамга оор абал жаратканын түшүнөбүз."
 ]
 
 chosen_voice = "timur" # see github for other voices
 
 print("*** See our github for tips on prompting the model for cleaning, humanlike generations.")
 
-prompts = [f"{chosen_voice}: " + p for p in prompts]
+prompts = [f"{chosen_voice}: <neutral> " + p for p in prompts]
 
 all_input_ids = []
 
@@ -158,14 +158,6 @@ def redistribute_codes(code_list):
   codes = [torch.tensor(layer_1).unsqueeze(0),
          torch.tensor(layer_2).unsqueeze(0),
          torch.tensor(layer_3).unsqueeze(0)]
-  # After creating codes
-  print(codes)
-  total_values = sum(tensor.numel() for tensor in codes)
-  count_bigger = sum((tensor > 4096).sum().item() for tensor in codes)
-  count_less = sum((tensor < 0).sum().item() for tensor in codes)
-  print(f"Total values: {total_values}")
-  print(f"Values bigger than 4096: {count_bigger}")
-  print(f"Values less than 0: {count_less}")
 
   audio_hat = snac_model.decode(codes)
   return audio_hat
