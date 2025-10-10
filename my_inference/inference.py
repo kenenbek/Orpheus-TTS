@@ -162,8 +162,10 @@ def redistribute_codes(code_list):
   print(codes)
   total_values = sum(tensor.numel() for tensor in codes)
   count_bigger = sum((tensor > 4096).sum().item() for tensor in codes)
+  count_less = sum((tensor < 0).sum().item() for tensor in codes)
   print(f"Total values: {total_values}")
   print(f"Values bigger than 4096: {count_bigger}")
+  print(f"Values less than 0: {count_less}")
 
   audio_hat = snac_model.decode(codes)
   return audio_hat
