@@ -158,6 +158,12 @@ def redistribute_codes(code_list):
   codes = [torch.tensor(layer_1).unsqueeze(0),
          torch.tensor(layer_2).unsqueeze(0),
          torch.tensor(layer_3).unsqueeze(0)]
+  # After creating codes
+  total_values = sum(tensor.numel() for tensor in codes)
+  count_bigger = sum((tensor > 4096).sum().item() for tensor in codes)
+  print(f"Total values: {total_values}")
+  print(f"Values bigger than 4096: {count_bigger}")
+
   audio_hat = snac_model.decode(codes)
   return audio_hat
 
