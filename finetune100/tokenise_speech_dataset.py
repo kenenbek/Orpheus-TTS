@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 MANIFEST = "DUMMY1/filtered_manifest.txt"
 HG_PUSH_NAME = "MbankAI/Orpheus-tokenised-dataset"
 tokenizer_name = "canopylabs/orpheus-3b-0.1-ft"
-SAMPLE_RATE = 22050
+SAMPLE_RATE = 24000
 
 tokeniser_length = 128256
 start_of_text = 128000
