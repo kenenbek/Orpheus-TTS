@@ -158,7 +158,7 @@ def redistribute_codes(code_list):
   codes = [torch.tensor(layer_1).unsqueeze(0),
          torch.tensor(layer_2).unsqueeze(0),
          torch.tensor(layer_3).unsqueeze(0)]
-  #print(codes)
+  print(codes)
   audio_hat = snac_model.decode(codes)
   return audio_hat
 
