@@ -6,11 +6,7 @@ import torch
 from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, AutoTokenizer
 import numpy as np
 import soundfile as sf
-import IPython.display as ipd
 import librosa
-from ipywebrtc import AudioRecorder, Audio
-from IPython.display import display
-import ipywidgets as widgets
 import os
 
 snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz")
@@ -48,13 +44,13 @@ model.cuda()
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 
-# from peft import PeftModel
-#
-# adapter_path = r"D:\Orpheus-TTS-checkpoints\ft-checkpoints\checkpoint-800"
-#
-# model = PeftModel.from_pretrained(model, adapter_path)
-# model = model.merge_and_unload()
-# model.cuda()
+from peft import PeftModel
+
+adapter_path = r"/data/kenenbek/Orpheus-TTS/finetune100/finetuned_model/checkpoint-13800"
+
+model = PeftModel.from_pretrained(model, adapter_path)
+model = model.merge_and_unload()
+model.cuda()
 
 #### CHANGE THIS ####
 
@@ -63,14 +59,14 @@ prompts = [
 "<sigh> Владимир Болотбеков, <cough> сиздин насыя боюнча карыз катталды.",
 "<sniffle> Төлөмдү жүргүзүүгө мүмкүнчүлүк <groan> тапканыңыз үчүн рахмат. Биз сиздин төлөмдү көзөмөлдөйбүз.",
 "<yawn> Төлөмдү кечиктирүү жоопкерчилик жаратат. Ошондуктан төлөмдү дароо жүргүзүп бериңиз, болбосо чалуулар жана эскертүүлөр кайталана берет.",
-" <gasp>Акча маселелериндеги кыйынчылыктар адамга оор абал жаратканын түшүнөбүз."
+"<gasp>Акча маселелериндеги кыйынчылыктар адамга оор абал жаратканын түшүнөбүз."
 ]
 
 chosen_voice = "timur" # see github for other voices
 
 print("*** See our github for tips on prompting the model for cleaning, humanlike generations.")
 
-prompts = [f"{chosen_voice}: " + p for p in prompts]
+prompts = [f"{chosen_voice}: <neutral> " + p for p in prompts]
 
 all_input_ids = []
 
@@ -162,6 +158,7 @@ def redistribute_codes(code_list):
   codes = [torch.tensor(layer_1).unsqueeze(0),
          torch.tensor(layer_2).unsqueeze(0),
          torch.tensor(layer_3).unsqueeze(0)]
+  print(codes)
   audio_hat = snac_model.decode(codes)
   return audio_hat
 
