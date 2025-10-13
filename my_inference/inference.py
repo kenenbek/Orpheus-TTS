@@ -3,7 +3,7 @@ model_name = "canopylabs/orpheus-3b-0.1-ft"
 from snac import SNAC
 import torch
 import torch
-from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, AutoTokenizer
+from transformers import AutoModelForCausalLM, Trainer, TrainingArguments, AutoTokenizer, BitsAndBytesConfig
 import numpy as np
 import soundfile as sf
 import librosa
@@ -14,32 +14,16 @@ snac_model = snac_model.to("cpu")
 
 print("We have loaded the tokeniser/detokeniser model to the cpu, to use vram - use the gpu for faster inference")
 
-tokeniser_name = "meta-llama/Llama-3.2-3B-Instruct"
-from huggingface_hub import snapshot_download
-
-# Download only model config and safetensors
-model_path = snapshot_download(
-    repo_id=model_name,
-    allow_patterns=[
-        "config.json",
-        "*.safetensors",
-        "model.safetensors.index.json",
-    ],
-    ignore_patterns=[
-        "optimizer.pt",
-        "pytorch_model.bin",
-        "training_args.bin",
-        "scheduler.pt",
-        "tokenizer.json",
-        "tokenizer_config.json",
-        "special_tokens_map.json",
-        "vocab.json",
-        "merges.txt",
-        "tokenizer.*"
-    ]
+quant_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_use_double_quant=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.bfloat16,
 )
 
-model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16)
+model = AutoModelForCausalLM.from_pretrained(model_name,
+                                            quantization_config=quant_config,
+                                             torch_dtype=torch.bfloat16)
 model.cuda()
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
