@@ -46,7 +46,7 @@ tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 from peft import PeftModel
 
-adapter_path = r"/data/kenenbek/Orpheus-TTS/finetune100/finetuned_model/checkpoint-13800"
+adapter_path = r"/data/kenenbek/Orpheus-TTS/finetune100/finetuned_model/checkpoint-23800"
 
 model = PeftModel.from_pretrained(model, adapter_path)
 model = model.merge_and_unload()
@@ -62,7 +62,7 @@ prompts = [
 "<gasp>Акча маселелериндеги кыйынчылыктар адамга оор абал жаратканын түшүнөбүз."
 ]
 
-chosen_voice = "timur" # see github for other voices
+chosen_voice = "Timur" # see github for other voices
 
 print("*** See our github for tips on prompting the model for cleaning, humanlike generations.")
 
