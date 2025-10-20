@@ -42,25 +42,8 @@ class OrpheusOfflineModel:
             modified_input_ids = torch.cat([start_token, input_ids, end_tokens], dim=1)  # SOH SOT Text EOT EOH
             all_modified_input_ids.append(modified_input_ids)
 
-        all_padded_tensors = []
-        all_attention_masks = []
-        max_length = max([modified_input_ids.shape[1] for modified_input_ids in all_modified_input_ids])
-
-        for modified_input_ids in all_modified_input_ids:
-            padding = max_length - modified_input_ids.shape[1]
-            padded_tensor = torch.cat([torch.full((1, padding), ST.PAD_TOKEN, dtype=torch.int64), modified_input_ids], dim=1)
-            attention_mask = torch.cat([torch.zeros((1, padding), dtype=torch.int64),
-                                        torch.ones((1, modified_input_ids.shape[1]), dtype=torch.int64)], dim=1)
-            all_padded_tensors.append(padded_tensor)
-            all_attention_masks.append(attention_mask)
-
-        all_padded_tensors = torch.cat(all_padded_tensors, dim=0)
-        all_attention_masks = torch.cat(all_attention_masks, dim=0)
-
-        input_ids = all_padded_tensors.to(self.device)
-        attention_mask = all_attention_masks.to(self.device)
-
-        return input_ids, attention_mask
+        input_ids = all_modified_input_ids
+        return input_ids
 
     def generate(self, text, request_id="req-001"):
         input_ids, attention_mask = self.prepare_prompts(text)
@@ -71,14 +54,13 @@ class OrpheusOfflineModel:
             max_tokens=1200, #max_new_tokens
             stop_token_ids=[ST.EOS], #eos_token_id
             repetition_penalty=1.1,
+            detokenize=False,
         )
 
         with torch.no_grad():
             generated_ids = self.vllm_model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
+                prompt_token_ids=input_ids,
                 sampling_params=sampling_params,
-                request_id=request_id,
             )
             return generated_ids
 
