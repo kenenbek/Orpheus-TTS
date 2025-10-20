@@ -46,7 +46,7 @@ class OrpheusOfflineModel:
         return input_ids
 
     def generate(self, text, request_id="req-001"):
-        input_ids, attention_mask = self.prepare_prompts(text)
+        input_ids = self.prepare_prompts(text)
         sampling_params = SamplingParams(
             n=1,  # num_return_sequences
             temperature=0.6,
