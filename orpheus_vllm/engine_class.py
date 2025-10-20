@@ -1,0 +1,146 @@
+import torch
+from vllm import AsyncLLMEngine, LLM, SamplingParams
+from transformers import AutoTokenizer
+from snac import SNAC
+
+from . import special_tokens as ST
+import scipy.io.wavfile as wavfile
+
+
+class OrpheusOfflineModel:
+    def __init__(self, model_path, dtype=torch.bfloat16, tokenizer='canopylabs/orpheus-3b-0.1-ft',
+                 device="cuda"):
+        self.model_path = model_path
+        self.dtype = dtype
+        self.device = device
+        self.vllm_model = LLM(model=model_path, dtype=dtype, device=device)
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+
+        self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
+
+    def prepare_prompts(self, text):
+        prompts = [f"Timur: <neutral> {text}",
+                   f"Timur: <strict> {text}",
+                   f"Aiganysh: <neutral> {text}",
+                   f"Aiganysh: <strict> {text}"]
+
+        all_input_ids = []
+        for prompt in prompts:
+            input_ids = self.tokenizer(prompt,
+                                       add_special_tokens=True,
+                                       return_tensors="pt").input_ids
+            all_input_ids.append(input_ids)
+
+        start_token = torch.tensor([[ST.SOH]], dtype=torch.int64)
+        end_tokens = torch.tensor([[ST.EOT, ST.EOH, ST.SOA, ST.SOS]], dtype=torch.int64)
+
+        all_modified_input_ids = []
+        for input_ids in all_input_ids:
+            modified_input_ids = torch.cat([start_token, input_ids, end_tokens], dim=1)  # SOH SOT Text EOT EOH
+            all_modified_input_ids.append(modified_input_ids)
+
+        all_padded_tensors = []
+        all_attention_masks = []
+        max_length = max([modified_input_ids.shape[1] for modified_input_ids in all_modified_input_ids])
+
+        for modified_input_ids in all_modified_input_ids:
+            padding = max_length - modified_input_ids.shape[1]
+            padded_tensor = torch.cat([torch.full((1, padding), ST.PAD_TOKEN, dtype=torch.int64), modified_input_ids], dim=1)
+            attention_mask = torch.cat([torch.zeros((1, padding), dtype=torch.int64),
+                                        torch.ones((1, modified_input_ids.shape[1]), dtype=torch.int64)], dim=1)
+            all_padded_tensors.append(padded_tensor)
+            all_attention_masks.append(attention_mask)
+
+        all_padded_tensors = torch.cat(all_padded_tensors, dim=0)
+        all_attention_masks = torch.cat(all_attention_masks, dim=0)
+
+        input_ids = all_padded_tensors.to(self.device)
+        attention_mask = all_attention_masks.to(self.device)
+
+        return input_ids, attention_mask
+
+    def generate(self, text, request_id="req-001"):
+        input_ids, attention_mask = self.prepare_prompts(text)
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.95,
+            max_new_tokens=1200,
+            stop_token_ids=[ST.EOS],
+            repetition_penalty=1.1,
+            num_return_sequences=1,
+            #eos_token_id=ST.EOS,
+            do_sample=True,
+        )
+
+        with torch.no_grad():
+            generated_ids = self.vllm_model.generate(
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                sampling_params=sampling_params,
+                request_id=request_id,
+            )
+            return generated_ids
+
+    def parse_output_as_speech(self, generated_ids):
+        # @title Parse Output as speech
+        token_to_find = ST.SOS
+        token_to_remove = ST.EOS
+
+        token_indices = (generated_ids == token_to_find).nonzero(as_tuple=True)
+
+        if len(token_indices[1]) > 0:
+            last_occurrence_idx = token_indices[1][-1].item()
+            cropped_tensor = generated_ids[:, last_occurrence_idx + 1:]
+        else:
+            cropped_tensor = generated_ids
+
+        mask = cropped_tensor != token_to_remove
+
+        processed_rows = []
+
+        for row in cropped_tensor:
+            masked_row = row[row != token_to_remove]
+            processed_rows.append(masked_row)
+
+        code_lists = []
+
+        for row in processed_rows:
+            row_length = row.size(0)
+            new_length = (row_length // 7) * 7
+            trimmed_row = row[:new_length]
+            trimmed_row = [t - 128266 for t in trimmed_row]
+            code_lists.append(trimmed_row)
+
+        def redistribute_codes(code_list):
+            layer_1 = []
+            layer_2 = []
+            layer_3 = []
+            for i in range((len(code_list) + 1) // 7):
+                layer_1.append(code_list[7 * i])
+                layer_2.append(code_list[7 * i + 1] - 4096)
+                layer_3.append(code_list[7 * i + 2] - (2 * 4096))
+                layer_3.append(code_list[7 * i + 3] - (3 * 4096))
+                layer_2.append(code_list[7 * i + 4] - (4 * 4096))
+                layer_3.append(code_list[7 * i + 5] - (5 * 4096))
+                layer_3.append(code_list[7 * i + 6] - (6 * 4096))
+            codes = [torch.tensor(layer_1).unsqueeze(0),
+                     torch.tensor(layer_2).unsqueeze(0),
+                     torch.tensor(layer_3).unsqueeze(0)]
+            audio_hat = self.snac_model.decode(codes)
+            return audio_hat
+
+        my_samples = []
+        for i, code_list in enumerate(code_lists):
+            samples = redistribute_codes(code_list)
+            my_samples.append(samples)
+
+            samples_np = samples.detach().squeeze().to("cpu").numpy()
+            wavfile.write(f'audio_{i}.wav', 24000, samples_np)
+
+
+
+
+    def pipeline(self, text):
+        ids = self.prepare_prompts(text)
+        generated_ids = self.generate(ids)
+        self.parse_output_as_speech(generated_ids)
