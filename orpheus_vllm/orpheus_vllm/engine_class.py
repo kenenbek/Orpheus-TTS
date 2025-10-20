@@ -65,14 +65,12 @@ class OrpheusOfflineModel:
     def generate(self, text, request_id="req-001"):
         input_ids, attention_mask = self.prepare_prompts(text)
         sampling_params = SamplingParams(
+            n=1,  # num_return_sequences
             temperature=0.6,
             top_p=0.95,
-            max_new_tokens=1200,
-            stop_token_ids=[ST.EOS],
+            max_tokens=1200, #max_new_tokens
+            stop_token_ids=[ST.EOS], #eos_token_id
             repetition_penalty=1.1,
-            num_return_sequences=1,
-            #eos_token_id=ST.EOS,
-            do_sample=True,
         )
 
         with torch.no_grad():
