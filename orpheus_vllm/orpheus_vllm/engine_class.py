@@ -13,7 +13,10 @@ class OrpheusOfflineModel:
         self.model_path = model_path
         self.dtype = dtype
         self.device = device
-        self.vllm_model = LLM(model=model_path, dtype=dtype, device=device)
+        self.vllm_model = LLM(model=model_path,
+                              max_model_len=8192,
+                              dtype=dtype,
+                              device=device)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
 
         self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
@@ -136,9 +139,6 @@ class OrpheusOfflineModel:
 
             samples_np = samples.detach().squeeze().to("cpu").numpy()
             wavfile.write(f'audio_{i}.wav', 24000, samples_np)
-
-
-
 
     def pipeline(self, text):
         ids = self.prepare_prompts(text)
