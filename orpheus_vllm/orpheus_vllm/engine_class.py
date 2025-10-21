@@ -6,6 +6,35 @@ from snac import SNAC
 from . import special_tokens as ST
 import scipy.io.wavfile as wavfile
 
+import io
+import wave
+import numpy as np
+
+
+def float32_to_wav_bytes(audio_array, sample_rate):
+    """Convert float32 audio array to WAV file bytes.
+
+    Args:
+        audio_array: Audio samples as float32 numpy array (values in range -1.0 to 1.0)
+        sample_rate: Sample rate in Hz (e.g., 22050)
+
+    Returns:
+        WAV file as bytes
+    """
+    audio = np.asarray(audio_array, dtype=np.float32)
+    audio = np.clip(audio, -1.0, 1.0)
+    audio_int16 = (audio * 32767).astype(np.int16)
+
+    buffer = io.BytesIO()
+    with wave.open(buffer, 'wb') as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(audio_int16.tobytes())
+
+    return buffer.getvalue()
+
+
 
 class OrpheusOfflineModel:
     def __init__(self, model_name, model_path, dtype=torch.bfloat16, tokenizer='canopylabs/orpheus-3b-0.1-ft',
@@ -133,4 +162,11 @@ class OrpheusOfflineModel:
         ids = self.prepare_prompts(text)
         generated_ids = self.generate_ids(ids)
         batch_audio = self.parse_output_as_speech(generated_ids)
-        return batch_audio
+
+        batch_wav_bytes = []
+        for audio_tensor in batch_audio:
+            # Assuming audio_tensor is shape (1, samples) and normalized to [-1, 1]
+            audio_float32 = audio_tensor.squeeze(0).cpu().numpy()
+            wav_bytes = float32_to_wav_bytes(audio_float32, sample_rate).getvalue()
+            batch_wav_bytes.append(wav_bytes)
+        return batch_wav_bytes
