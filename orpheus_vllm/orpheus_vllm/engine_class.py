@@ -37,7 +37,7 @@ class OrpheusOfflineModel:
         input_ids = [self.start_token + ids + self.end_tokens for ids in input_ids]
         return input_ids
 
-    def generate(self, input_ids):
+    def generate(self, input_ids, sample_rate=22050):
         sampling_params = SamplingParams(
             n=1,  # num_return_sequences
             temperature=0.6,
