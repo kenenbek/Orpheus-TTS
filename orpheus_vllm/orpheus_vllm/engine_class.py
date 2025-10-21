@@ -10,6 +10,7 @@ import scipy.io.wavfile as wavfile
 class OrpheusOfflineModel:
     def __init__(self, model_path, dtype=torch.bfloat16, tokenizer='canopylabs/orpheus-3b-0.1-ft',
                  device="cuda"):
+        self.model_name = model_name
         self.model_path = model_path
         self.dtype = dtype
         self.device = device
