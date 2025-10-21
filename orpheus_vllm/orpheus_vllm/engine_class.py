@@ -18,8 +18,9 @@ class OrpheusOfflineModel:
                               dtype=dtype,
                               device=device)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-
-        self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to(self.device)
+        self.snac_model = SNAC.from_pretrained("hubertsiuzdak/snac_24khz").to("cpu")
+        self.start_token = [ST.SOH]
+        self.end_tokens = [ST.EOT, ST.EOH, ST.SOA, ST.SOS]
 
     def prepare_prompts(self, text):
         prompts = [f"Timur: <neutral> {text}",
@@ -27,26 +28,16 @@ class OrpheusOfflineModel:
                    f"Aiganysh: <neutral> {text}",
                    f"Aiganysh: <strict> {text}"]
 
-        all_input_ids = []
-        for prompt in prompts:
-            input_ids = self.tokenizer(prompt,
-                                       add_special_tokens=True,
-                                       return_tensors="pt").input_ids
-            all_input_ids.append(input_ids)
+        input_ids = self.tokenizer(prompts,
+                                   add_special_tokens=True,
+                                   padding=False,
+                                   truncation=False,
+                                   return_tensors=None)["input_ids"]
 
-        start_token = torch.tensor([[ST.SOH]], dtype=torch.int64)
-        end_tokens = torch.tensor([[ST.EOT, ST.EOH, ST.SOA, ST.SOS]], dtype=torch.int64)
-
-        all_modified_input_ids = []
-        for input_ids in all_input_ids:
-            modified_input_ids = torch.cat([start_token, input_ids, end_tokens], dim=1)  # SOH SOT Text EOT EOH
-            all_modified_input_ids.append(modified_input_ids)
-
-        input_ids = all_modified_input_ids
+        input_ids = [self.start_token + ids + self.end_tokens for ids in input_ids]
         return input_ids
 
-    def generate(self, text, request_id="req-001"):
-        input_ids = self.prepare_prompts(text)
+    def generate(self, input_ids):
         sampling_params = SamplingParams(
             n=1,  # num_return_sequences
             temperature=0.6,
@@ -56,71 +47,89 @@ class OrpheusOfflineModel:
             repetition_penalty=1.1,
             detokenize=False,
         )
+        generated_ids = self.vllm_model.generate(
+            prompt_token_ids=input_ids,
+            sampling_params=sampling_params,
+        )
+        return generated_ids
 
-        with torch.no_grad():
-            generated_ids = self.vllm_model.generate(
-                prompt_token_ids=input_ids,
-                sampling_params=sampling_params,
-            )
-            return generated_ids
+    def _redistribute_and_decode(self, normalized_tokens):
+        """
+        Helper function to demultiplex the flat list of codes into the
+        three layers required by the SNAC vocoder and decode to audio.
+        """
+        layer_1, layer_2, layer_3 = [], [], []
+
+        # The number of 7-token blocks
+        num_blocks = len(normalized_tokens) // 7
+
+        for i in range(num_blocks):
+            base_idx = 7 * i
+            layer_1.append(normalized_tokens[base_idx])
+            layer_2.append(normalized_tokens[base_idx + 1] - 4096)
+            layer_3.append(normalized_tokens[base_idx + 2] - (2 * 4096))
+            layer_3.append(normalized_tokens[base_idx + 3] - (3 * 4096))
+            layer_2.append(normalized_tokens[base_idx + 4] - (4 * 4096))
+            layer_3.append(normalized_tokens[base_idx + 5] - (5 * 4096))
+            layer_3.append(normalized_tokens[base_idx + 6] - (6 * 4096))
+
+        # Convert the Python lists to the required tensor format for the vocoder
+        codes = [
+            torch.tensor(layer_1).unsqueeze(0),
+            torch.tensor(layer_2).unsqueeze(0),
+            torch.tensor(layer_3).unsqueeze(0)
+        ]
+
+        with torch.no_grad():  # Good practice when running inference
+            audio_hat = self.snac_model.decode(codes)
+        return audio_hat
 
     def parse_output_as_speech(self, generated_ids):
-        # @title Parse Output as speech
-        token_to_find = ST.SOS
-        token_to_remove = ST.EOS
+        sos_token = ST.SOS
+        eos_token = ST.EOS
+        codec_offset = 128266
+        batch_audio = []
+        for output in generated_ids:
+            # The generated tokens are a tuple in output.outputs[0].token_ids
+            generated_tokens = output.outputs[0].token_ids
 
-        token_indices = (generated_ids == token_to_find).nonzero(as_tuple=True)
+            # 1. Find the last occurrence of the SOS token and slice after it.
+            # This separates the generated audio codes from any prefix/prompt tokens.
+            try:
+                # Find the index of the last SOS token by searching the reversed tuple
+                last_sos_idx = len(generated_tokens) - 1 - generated_tokens[::-1].index(sos_token)
+                cropped_tokens = generated_tokens[last_sos_idx + 1:]
+            except ValueError:
+                # If no SOS token is found, use the entire sequence
+                cropped_tokens = generated_tokens
 
-        if len(token_indices[1]) > 0:
-            last_occurrence_idx = token_indices[1][-1].item()
-            cropped_tensor = generated_ids[:, last_occurrence_idx + 1:]
-        else:
-            cropped_tensor = generated_ids
+            # 2. Filter out all EOS tokens using a list comprehension.
+            filtered_tokens = [token for token in cropped_tokens if token != eos_token]
 
-        mask = cropped_tensor != token_to_remove
+            # 3. Trim the sequence to the nearest multiple of 7.
+            # The codec expects a flat list of codes in groups of 7.
+            num_blocks = len(filtered_tokens) // 7
+            if num_blocks == 0:
+                # If there are not enough tokens to form a single block, skip.
+                # You might want to return a silent tensor or handle this differently.
+                batch_audio.append(torch.zeros((1, 0)))  # Example: empty audio
+                continue
 
-        processed_rows = []
+            trimmed_length = num_blocks * 7
+            trimmed_tokens = filtered_tokens[:trimmed_length]
 
-        for row in cropped_tensor:
-            masked_row = row[row != token_to_remove]
-            processed_rows.append(masked_row)
+            # 4. Normalize the tokens by subtracting the offset.
+            # This is also done efficiently with a list comprehension.
+            normalized_tokens = [t - codec_offset for t in trimmed_tokens]
 
-        code_lists = []
+            # 5. Redistribute the flat list into layers and decode to audio.
+            audio_tensor = self._redistribute_and_decode(normalized_tokens)
+            batch_audio.append(audio_tensor)
 
-        for row in processed_rows:
-            row_length = row.size(0)
-            new_length = (row_length // 7) * 7
-            trimmed_row = row[:new_length]
-            trimmed_row = [t - 128266 for t in trimmed_row]
-            code_lists.append(trimmed_row)
-
-        def redistribute_codes(code_list):
-            layer_1 = []
-            layer_2 = []
-            layer_3 = []
-            for i in range((len(code_list) + 1) // 7):
-                layer_1.append(code_list[7 * i])
-                layer_2.append(code_list[7 * i + 1] - 4096)
-                layer_3.append(code_list[7 * i + 2] - (2 * 4096))
-                layer_3.append(code_list[7 * i + 3] - (3 * 4096))
-                layer_2.append(code_list[7 * i + 4] - (4 * 4096))
-                layer_3.append(code_list[7 * i + 5] - (5 * 4096))
-                layer_3.append(code_list[7 * i + 6] - (6 * 4096))
-            codes = [torch.tensor(layer_1).unsqueeze(0),
-                     torch.tensor(layer_2).unsqueeze(0),
-                     torch.tensor(layer_3).unsqueeze(0)]
-            audio_hat = self.snac_model.decode(codes)
-            return audio_hat
-
-        my_samples = []
-        for i, code_list in enumerate(code_lists):
-            samples = redistribute_codes(code_list)
-            my_samples.append(samples)
-
-            samples_np = samples.detach().squeeze().to("cpu").numpy()
-            wavfile.write(f'audio_{i}.wav', 24000, samples_np)
+        return batch_audio
 
     def pipeline(self, text):
         ids = self.prepare_prompts(text)
         generated_ids = self.generate(ids)
-        self.parse_output_as_speech(generated_ids)
+        batch_audio = self.parse_output_as_speech(generated_ids)
+        return batch_audio

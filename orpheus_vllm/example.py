@@ -17,7 +17,7 @@ def main():
     )
 
     # Text to convert to speech
-    text = "Бишкек Кыргызстандын борбору жана эң чоң шаары болуп саналат.>"
+    text = "Бишкек Кыргызстандын борбору жана эң чоң шаары болуп саналат."
 
     # Generate speech
     print(f"Generating speech for: '{text}'")
