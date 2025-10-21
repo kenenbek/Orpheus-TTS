@@ -167,6 +167,6 @@ class OrpheusOfflineModel:
         for audio_tensor in batch_audio:
             # Assuming audio_tensor is shape (1, samples) and normalized to [-1, 1]
             audio_float32 = audio_tensor.squeeze(0).cpu().numpy()
-            wav_bytes = float32_to_wav_bytes(audio_float32, sample_rate).getvalue()
+            wav_bytes = float32_to_wav_bytes(audio_float32, sample_rate)
             batch_wav_bytes.append(wav_bytes)
         return batch_wav_bytes
