@@ -37,7 +37,7 @@ class OrpheusOfflineModel:
         input_ids = [self.start_token + ids + self.end_tokens for ids in input_ids]
         return input_ids
 
-    def generate(self, input_ids, sample_rate=22050):
+    def generate_ids(self, input_ids, sample_rate=22050):
         sampling_params = SamplingParams(
             n=1,  # num_return_sequences
             temperature=0.6,
@@ -128,8 +128,8 @@ class OrpheusOfflineModel:
 
         return batch_audio
 
-    def pipeline(self, text):
+    def generate(self, text, sample_rate=22050):
         ids = self.prepare_prompts(text)
-        generated_ids = self.generate(ids)
+        generated_ids = self.generate_ids(ids)
         batch_audio = self.parse_output_as_speech(generated_ids)
         return batch_audio

@@ -21,7 +21,7 @@ def main():
 
     # Generate speech
     print(f"Generating speech for: '{text}'")
-    model.pipeline(text)
+    model.generate(text)
 
     print("Speech generation complete. Audio files saved as audio_0.wav, audio_1.wav, etc.")
 
